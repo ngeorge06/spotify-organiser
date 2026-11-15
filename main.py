@@ -1,21 +1,35 @@
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
-from dotenv import load_dotenv
+"""Sort your Spotify Liked Songs into playlists by musical key.
 
-import moveToTemp as Move
+Run this file. It scans the key of every liked song (resuming where it left off
+if it was stopped), then shows which key playlists it would fill and asks first."""
+from pathlib import Path
 
-load_dotenv() #load CLIENT_ID, CLIENT_SECRET, REDIRECT_URI from .env file
+from key_playlists import KeyPlaylistBuilder
+from key_scanner import KeyScanner, ScanError
+from scan_results import ScanResults
+from spotify_client import SpotifyClient
+
+TRACKS_FILE = Path("results/tracks.txt")   # record of your liked songs' URIs
+MAX_TRACKS = None                          # e.g. 30 for a short test run; None = all
 
 
-sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-    scope="user-library-read playlist-read-private playlist-modify-private"
-))
+def main() -> None:
+    client = SpotifyClient()
+    results = ScanResults()
+    results.load()
+
+    track_uris = client.liked_track_uris()
+    TRACKS_FILE.parent.mkdir(exist_ok=True)
+    TRACKS_FILE.write_text("\n".join(track_uris))
+
+    try:
+        finished = KeyScanner(client, results).run(track_uris, MAX_TRACKS)
+    except ScanError as error:
+        print(error)
+        return
+    if finished:
+        KeyPlaylistBuilder(client, results).run()
+
 
 if __name__ == "__main__":
-
-    choice = input("1: move all saved tracks to temp playlist\n2: Sort temp playlist by musical key\n\n")
-
-    match choice:
-        case "1": Move.move(sp)
-        case "2": pass
-        case _: print("Invalid choice. Please select 1 or 2.\n\n")
+    main()
