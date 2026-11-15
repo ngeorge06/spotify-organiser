@@ -14,6 +14,29 @@ Spotify's Web API no longer returns audio features (key, BPM) to new apps, so th
 
 Songs that are unavailable on Spotify (shown with a dimmed pill) or have no key are skipped.
 
+## Key colours
+
+Spotify draws each key as a coloured label. These are the colours the scanner matches against, measured from the desktop app (`screen_reading/key_palette.py`). A labels are minor keys; B labels are major keys and use a deeper shade of the same hue.
+
+![Spotify's Camelot key labels](docs/key_palette.png)
+
+| Key | RGB | Hex | Key | RGB | Hex |
+|---|---|---|---|---|---|
+| 1A | 85, 242, 216 | `#55F2D8` | 1B | 5, 236, 203 | `#05ECCB` |
+| 2A | 127, 242, 169 | `#7FF2A9` | 2B | 61, 237, 130 | `#3DED82` |
+| 3A | 175, 246, 142 | `#AFF68E` | 3B | 134, 242, 78 | `#86F24E` |
+| 4A | 231, 217, 163 | `#E7D9A3` | 4B | 222, 202, 115 | `#DECA73` |
+| 5A | 254, 192, 163 | `#FEC0A3` | 5B | 254, 161, 129 | `#FEA181` |
+| 6A | 255, 173, 185 | `#FFADB9` | 6B | 255, 136, 147 | `#FF8893` |
+| 7A | 255, 173, 207 | `#FFADCF` | 7B | 255, 128, 180 | `#FF80B4` |
+| 8A | 241, 172, 231 | `#F1ACE7` | 8B | 238, 130, 217 | `#EE82D9` |
+| 9A | 221, 180, 251 | `#DDB4FB` | 9B | 203, 144, 255 | `#CB90FF` |
+| 10A | 190, 206, 255 | `#BECEFF` | 10B | 160, 182, 255 | `#A0B6FF` |
+| 11A | 137, 227, 249 | `#89E3F9` | 11B | 86, 217, 248 | `#56D9F8` |
+| 12A | 86, 239, 242 | `#56EFF2` | 12B | 4, 235, 235 | `#04EBEB` |
+
+A label is matched to the nearest colour if it is within a distance of 12. The closest two keys (6A and 7A) are 22 apart, so keys can't be confused, and dimmed labels on unavailable tracks match nothing and are skipped.
+
 ## Setup
 
 1. Create an app at the [Spotify developer dashboard](https://developer.spotify.com/dashboard) and add the redirect URI `http://127.0.0.1:8888/callback`. (Apps in Development Mode need the owner to have Spotify Premium.)
@@ -65,6 +88,7 @@ screen_reading/     reading Spotify's window
   pill_finder.py      PillFinder: finds key pills in a screenshot strip
   calibration.py      Calibration: where things are on screen
   track_list_view.py  TrackListView: captures and reads the playlist on screen
+docs/key_palette.png  key colour image used in this README
 results/            generated files (git-ignored): scanned_keys.json,
                     calibration.json, tracks.txt, debug_first_batch.png
 ```
