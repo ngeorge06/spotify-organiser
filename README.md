@@ -1,18 +1,38 @@
 # Spotify Key Organiser
 
-Sorts your Spotify **Liked Songs** into playlists by musical key (Camelot notation: `1A`, `7B`, `12B`, ...), which is handy for DJ-style mixing.
+Sorts your Spotify **Liked Songs** into one playlist per musical key (`1A`, `7B`, `12B`, ...), so you can find songs that mix well together.
 
-## Why it reads the screen
+## The problem
 
-Spotify's Web API no longer returns audio features (key, BPM) to new apps, so the key can't be fetched directly. The Spotify desktop app does show a **Key** column (via the playlist *Mix* view), so this tool reads it from there:
+Songs in compatible keys blend smoothly when you mix from one into the next. Songs in clashing keys sound off. DJs use the **Camelot wheel** to make this easy: every key gets a number from 1 to 12 and a letter, A for minor and B for major. Two songs mix well if they have:
 
-1. It puts the next 10 liked songs into a private playlist called `temp` (one API call).
-2. It waits for the desktop app to redraw, then takes a small screenshot of the title and Key columns.
-3. Each key shows as a coloured pill. The colour identifies the key, and the row order identifies the song, so no text recognition is needed.
-4. It repeats for every liked song (about 4 minutes for 2,000 songs) and saves `{track: key}` to `results/scanned_keys.json`.
-5. A second step adds each song to the playlist named after its key, creating playlists that don't exist and skipping songs already in them.
+- the **same** key (`8A` to `8A`)
+- a number **one step away**, same letter (`8A` to `7A` or `9A`)
+- the **same number, other letter** (`8A` to `8B`)
 
-Songs that are unavailable on Spotify (shown with a dimmed pill) or have no key are skipped.
+I had about 1,900 liked songs and wanted them grouped by key, so I could open `8A` and see everything that mixes with what's playing. Spotify shows each song's key in its desktop app, but there's no way to sort or filter by it, and doing 1,900 songs by hand wasn't realistic.
+
+The obvious route doesn't work any more: **Spotify's Web API stopped returning audio features (key, BPM) to new apps in November 2024.** So this tool reads the key from the desktop app's screen instead.
+
+## How it works
+
+1. It puts the next 10 liked songs into a private playlist called `temp`, with one API call that replaces whatever `temp` held before.
+2. It waits for the desktop app to redraw. It knows the new batch is showing when the song titles change and the picture stops changing for a few frames.
+3. It takes a small screenshot of just the title and Key columns.
+4. Each key appears as a coloured label. The colour identifies the key (see [Key colours](#key-colours)), and the row the label is on identifies the song, because the songs were sent in a known order. No text recognition is needed.
+5. It repeats for every liked song and saves `{track: key}` to `results/scanned_keys.json`. That takes about 4 minutes for 1,900 songs.
+6. It then shows a plan and, once you confirm, adds each song to the playlist named after its key. It creates playlists that don't exist yet and skips songs that are already in them.
+
+Songs with no key label, or a dimmed one (tracks no longer available on Spotify), are skipped.
+
+### What didn't work (useful if you're trying something similar)
+
+- **Third-party key APIs.** I couldn't get an API key from GetSongBPM: the sign-up form never delivered one. Other services need you to look up every song one by one and are rate-limited.
+- **Playing each song and reading the "now playing" bar.** Spotify ignored rapid track changes requested through the API and kept restarting the first song.
+- **Scrolling the full playlist and reading the row numbers with OCR.** It was slow. Rows hidden under the player bar were missed or misread, scroll distances were unpredictable, and the OCR got 2 or 3 keys wrong in every 30.
+- **Pressing the Down arrow through the list.** The selected row often ended up hidden behind the player bar.
+
+Loading 10 songs at a time into a small playlist avoided all of these. The window never scrolls, every row is visible, and positions are known in advance.
 
 ## Key colours
 
@@ -39,6 +59,8 @@ A label is matched to the nearest colour if it is within a distance of 12. The c
 
 ## Setup
 
+**You need:** Python 3.10+, the Spotify **desktop app** (developed and tested on Windows), a Spotify account with Premium (required to own an app in Development Mode), and a screen where about 10 playlist rows fit.
+
 1. Create an app at the [Spotify developer dashboard](https://developer.spotify.com/dashboard) and add the redirect URI `http://127.0.0.1:8888/callback`. (Apps in Development Mode need the owner to have Spotify Premium.)
 2. Copy `.env.example` to `.env` and fill in your client ID and secret.
 3. Install the dependencies:
@@ -46,6 +68,7 @@ A label is matched to the nearest colour if it is within a distance of 12. The c
    pip install -r requirements.txt
    ```
 4. In the Spotify **desktop app**, open any playlist, turn on **Mix**, and make sure the **Key** column is visible. Pause playback so the playing row doesn't change its look.
+5. **If you already have a playlist called `temp`, rename it.** The scanner overwrites it.
 
 ## Usage
 
@@ -67,6 +90,17 @@ Open the `temp` playlist in Spotify, scrolled to the top, then hover the mouse o
 4. the bottom edge of the list, just above the player bar
 
 The positions are saved to `results/calibration.json`. Calibrate again if you move or resize the Spotify window or change its zoom.
+
+### Using the playlists
+
+When a song is playing in key `8A`, open `8A`, `7A`, `9A` or `8B` to find the next song. Moving one step round the wheel each time builds a smooth set, and switching letter (A to B) lifts the mood from minor to major.
+
+## Troubleshooting
+
+- **"Could not measure the row spacing"**: open `results/debug_first_batch.png`. It should show the first batch's titles and coloured key labels. If it doesn't, recalibrate with Spotify in the same position as when you scan.
+- **Lots of songs with no key**: check that the Key column is visible, playback is paused, and nothing covers the Spotify window. Then delete `results/scanned_keys.json` and scan again.
+- **Wrong keys**: Spotify may have changed its label colours. Screenshot the labels and update `screen_reading/key_palette.py`.
+- **Scan stops early or misses batches**: the app may be slow to redraw. Raise `SETTLE_TIMEOUT` in `screen_reading/track_list_view.py`.
 
 ## Notes and limits
 
